@@ -1,117 +1,128 @@
+import unittest
 from datetime import datetime
-import requests
-from lxml import html
-import pygal
-import webbrowser
+from unittest.mock import patch
+
 
 #Get user input-------------------
+def get_user_input():
+    #get stock symbol
+    stock_symbol = input("Enter the stock symbol: ")
 
-#get stock symbol
-stock_symbol = input("Enter the stock symbol: ")
-
-#get chart type, line or bar
-while True:
-    print("\nChart Types\n ----------------\n 1) Bar \n 2) Line\n")
-    chart_type = input("Enter 1 for Bar chart, 2 for Line chart: ")
-    if chart_type in ["1", "2"]:
-        break
-    else:
-        print("\nInvalid input\n")
-
-#get time series function, intraday, daily, weekly, or monthly
-while True:
-    print("\nTime Series \n--------------------------------\n 1) Intraday\n 2) Daily\n 3) Weekly\n 4) Monthly\n")
-    u_time_series = input("Enter time series (1,2,3,4): ")
-    if u_time_series in ["1","2","3","4"]:
-        break
-    else: print("\nInvalid Input")
-
-
-if u_time_series == "1":
-    time_series = "TIME_SERIES_INTRADAY"
-    time_series_output = "Time Series (5min)"
-if u_time_series == "2":
-    time_series = "TIME_SERIES_DAILY"
-    time_series_output = "Time Series (Daily)"
-if u_time_series == "3":
-    time_series = "TIME_SERIES_WEEKLY"
-    time_series_output = "Weekly Time Series"
-if u_time_series == "4":
-    time_series = "TIME_SERIES_MONTHLY"
-    time_series_output = "Monthly Time Series"
-
-
-#get start date
-while True:
-    start_date = input("\nEnter the start date (YYYY-MM-DD): ")
-    try:
-        datetime.strptime(start_date, '%Y-%m-%d')
-        break
-    except ValueError:
-        print("\nInvalid date format. Please use YYYY-MM-DD format.")
-
-
-#get end date
-while True:
-    end_date = input("\nEnter the end date in YYYY-MM-DD format: ")
-    try:
-        datetime.strptime(end_date, '%Y-%m-%d')
-        if end_date >= start_date:
+    #get chart type, line or bar
+    while True:
+        print("\nChart Types\n ----------------\n 1) Bar \n 2) Line\n")
+        chart_type = input("Enter 1 for Bar chart, 2 for Line chart: ")
+        if chart_type in ["1", "2"]:
             break
         else:
-            print("The end date should not be before the begin date.")
-    except ValueError:
-        print("\nInvalid date format. Please use YYYY-MM-DD format.")
+            print("\nInvalid input\n")
+            raise ValueError
+
+    #get time series function, intraday, daily, weekly, or monthly
+    while True:
+        print("\nTime Series \n--------------------------------\n 1) Intraday\n 2) Daily\n 3) Weekly\n 4) Monthly\n")
+        u_time_series = input("Enter time series (1,2,3,4): ")
+        if u_time_series in ["1","2","3","4"]:
+            break
+        else: 
+            print("\nInvalid input")
+            raise ValueError
 
 
-#----user input is gathered, to be sent to API ------------
-print(stock_symbol, chart_type, time_series, start_date, end_date)
+    if u_time_series == "1":
+        time_series = "TIME_SERIES_INTRADAY"
+        time_series_output = "Time Series (5min)"
+    if u_time_series == "2":
+        time_series = "TIME_SERIES_DAILY"
+        time_series_output = "Time Series (Daily)"
+    if u_time_series == "3":
+        time_series = "TIME_SERIES_WEEKLY"
+        time_series_output = "Weekly Time Series"
+    if u_time_series == "4":
+        time_series = "TIME_SERIES_MONTHLY"
+        time_series_output = "Monthly Time Series"
 
 
-
-api_key = 'CRF5E6TEAFQOQWZY'
-
-url = f'https://www.alphavantage.co/query?function={time_series}&symbol={stock_symbol}&apikey={api_key}'
-
-response = requests.get(url)
-data = response.json()
-print(data)
-
-# Parse the API response
-tree = html.fromstring(response.text)
-
-closing_prices = []
+    #get start date
+    while True:
+        start_date = input("\nEnter the start date (YYYY-MM-DD): ")
+        try:
+            datetime.strptime(start_date, '%Y-%m-%d')
+            break
+        except ValueError:
+            print("\nInvalid date format. Please use YYYY-MM-DD format.")
 
 
+    #get end date
+    while True:
+        end_date = input("\nEnter the end date in YYYY-MM-DD format: ")
+        try:
+            datetime.strptime(end_date, '%Y-%m-%d')
+            if end_date >= start_date:
+                break
+            else:
+                print("The end date should not be before the begin date.")
+        except ValueError:
+            print("\nInvalid date format. Please use YYYY-MM-DD format.")
 
 
-for date, values in data[time_series_output].items():
-    closing_prices.append(float(values['4. close']))
+    return stock_symbol, chart_type, time_series, start_date, end_date
 
-print(closing_prices)
+# Test class
+class TestGetUserInput(unittest.TestCase):
 
-# Create a line chart
-if chart_type == "2":
-    chart = pygal.Line()
-    chart.title = f'{stock_symbol} Stock Prices'
-    chart.x_labels = reversed([str(i) for i in range(1, len(closing_prices) + 1)])
-    chart.add('Closing Price', [float(price) for price in closing_prices])
+    #test good input 
+    @patch('builtins.input', side_effect=['AAPL', '1', '2', '2023-01-01', '2023-01-10'])
+    def test_gather_user_input(self, mock_input):
+        result = get_user_input()
+        expected_result = ('AAPL', '1', 'TIME_SERIES_DAILY', '2023-01-01', '2023-01-10')
+        self.assertEqual(result, expected_result)
 
-    # Render the chart to an SVG file
-    chart.render_to_file('stock_chart.svg')
+    #test bad symbol stock symbol (this one should fail)
+    @patch('builtins.input', side_effect=['aapl', '1', '2', '2023-01-01', '2023-01-10'])
+    def test_bad_stock_symbol(self, mock_input):
+        with self.assertRaises(ValueError) as context:
+            get_user_input()
+
+        expected_error_message = "Invalid input. Please enter up to 7 capital letters."
+        self.assertEqual(str(context.exception), expected_error_message)
+
+    #test bad chart type input
+    def test_bad_chart_type(self):
+        with patch('builtins.input', side_effect=['AAPL', '3', '2', '2023-01-01', '2023-01-10']):
+            with self.assertRaises(ValueError) as context:
+                get_user_input()
+
+            expected_error_message = "Invalid input"
+            self.assertEqual(str(context.exception), expected_error_message)
 
 
-    webbrowser.open('stock_chart.svg')
+    #test bad time series input
+    @patch('builtins.input', side_effect=['AAPL', '1', '5', '2023-01-01', '2023-01-10'])
+    def test_bad_time_series(self, mock_input):
+        with self.assertRaises(ValueError) as context:
+            get_user_input()
 
-#create bar chart
-if chart_type == "1":
-    chart = pygal.Bar()
-    chart.title = f'{stock_symbol} Stock Prices'
-    chart.x_labels = reversed([str(i) for i in range(1, len(closing_prices) + 1)])
-    chart.add('Closing Price', [float(price) for price in closing_prices])
+        expected_error_message = "Invalid input"
+        self.assertEqual(str(context.exception), expected_error_message)
 
-    # Render the chart to an SVG file
-    chart.render_to_file('stock_chart.svg')
+    #test bad start date input
+    @patch('builtins.input', side_effect=['AAPL', '1', '2', 'bad-date', '2023-01-10'])
+    def test_bad_start_date(self, mock_input):
+        with self.assertRaises(ValueError) as context:
+            get_user_input()
 
+        expected_error_message = "Invalid date format. Please use YYYY-MM-DD format."
+        self.assertEqual(str(context.exception), expected_error_message)
 
-    webbrowser.open('stock_chart.svg')
+    #test bad end date input
+    @patch('builtins.input', side_effect=['AAPL', '1', '2', '2023-01-01', 'bad-date'])
+    def test_bad_end_date(self, mock_input):
+        with self.assertRaises(ValueError) as context:
+            get_user_input()
+
+        expected_error_message = "The end date should not be before the begin date."
+        self.assertEqual(str(context.exception), expected_error_message)
+
+if __name__ == '__main__':
+    unittest.main()
